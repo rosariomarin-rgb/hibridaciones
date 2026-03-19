@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registro de hibridaciones en cítricos</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .header {
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+    .header p {
+      margin: 0;
+      color: #475569;
+      font-size: 15px;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .stat {
+      padding: 20px;
+    }
+    .stat-label {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: bold;
+    }
+    .section {
+      padding: 20px;
+    }
+    .section h2 {
+      margin: 0 0 16px;
+      font-size: 20px;
+    }
+    form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .full {
+      grid-column: 1 / -1;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    input, select, textarea, button {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+    input[readonly] {
+      background: #f8fafc;
+      color: #475569;
+    }
+    button {
+      cursor: pointer;
+      background: #0f172a;
+      color: white;
+      border: none;
+    }
+    button:active { opacity: 0.85; }
+    button.secondary {
+      background: white;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+    }
+    .inline-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .subcard {
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .record-list {
+      display: grid;
+      gap: 14px;
+    }
+    .record {
+      padding: 16px;
+    }
+    .record-title {
+      margin: 0 0 8px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .record-cross {
+      margin: 0 0 10px;
+      color: #475569;
+    }
+    .record-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 16px;
+      color: #475569;
+      font-size: 14px;
+    }
+    .record-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .muted {
+      color: #64748b;
+      font-size: 14px;
+    }
+    @media (max-width: 800px) {
+      .grid-2, .stats, form, .record-grid {
+        grid-template-columns: 1fr;
+      }
+      .header h1 { font-size: 22px; }
+      .stat-value { font-size: 26px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card header">
+      <h1>🌿 Registro de hibridaciones en cítricos</h1>
+      <p>Documenta cada cruzamiento con fecha, parentales, ploidía, localización, flores polinizadas y observaciones.</p>
+      <div class="actions">
+        <button type="button" class="secondary" id="exportCsvBtn">⬇ Exportar CSV</button>
+        <button type="button" class="secondary" id="exportJsonBtn">⬇ Exportar JSON</button>
+        <button type="button" class="secondary" id="importJsonBtn">⬆ Importar JSON</button>
+        <input type="file" id="importFileInput" accept=".json" style="display:none" />
+      </div>
+      <div id="syncStatus" style="margin-top:10px; font-size:13px; font-weight:600;">Conectando...</div>
+      <div id="importMsg" style="display:none; margin-top:12px; padding:10px 14px; border-radius:10px; font-size:14px;"></div>
+    </div>
+
+    <div class="stats">
+      <div class="card stat">
+        <div class="stat-label">Cruzamientos registrados</div>
+        <div class="stat-value" id="totalRecords">0</div>
+      </div>
+      <div class="card stat">
+        <div class="stat-label">Flores polinizadas</div>
+        <div class="stat-value" id="totalFlowers">0</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card section">
+        <h2 id="formTitle">Nueva hibridación</h2>
+        <form id="recordForm">
+          <div>
+            <label for="date">Fecha</label>
+            <input type="date" id="date" required />
+          </div>
+
+          <div>
+            <label for="recordId">ID de cruzamiento</label>
+            <input type="text" id="recordId" placeholder="Se genera automático si lo dejas vacío" />
+          </div>
+
+          <div class="full">
+            <label for="femaleParent">Parental femenino</label>
+            <select id="femaleParent" required></select>
+          </div>
+
+          <div>
+            <label for="femalePloidy">Ploidía</label>
+            <input type="text" id="femalePloidy" readonly />
+          </div>
+
+          <div>
+            <label for="femaleLocation">Localización</label>
+            <input type="text" id="femaleLocation" readonly />
+          </div>
+
+          <div class="full subcard">
+            <div class="muted" style="margin-bottom: 12px;">Añadir nuevo parental femenino</div>
+            <div class="grid-2">
+              <div>
+                <label for="newFemaleParent">Código parental</label>
+                <input type="text" id="newFemaleParent" />
+              </div>
+              <div>
+                <label for="newFemalePloidy">Ploidía</label>
+                <input type="text" id="newFemalePloidy" value="2x" />
+              </div>
+            </div>
+            <div style="margin-top: 12px;">
+              <label for="newFemaleLocation">Localización</label>
+              <input type="text" id="newFemaleLocation" />
+            </div>
+            <div style="margin-top: 12px;">
+              <button type="button" class="secondary" id="addFemaleBtn">Añadir parental femenino</button>
+            </div>
+          </div>
+
+          <div class="full">
+            <label for="maleParent">Parental masculino</label>
+            <select id="maleParent" required></select>
+          </div>
+
+          <div class="full subcard">
+            <div class="muted" style="margin-bottom: 12px;">Añadir nuevo parental masculino</div>
+            <div>
+              <label for="newMaleParent">Código o número</label>
+              <input type="text" id="newMaleParent" />
+            </div>
+            <div style="margin-top: 12px;">
+              <button type="button" class="secondary" id="addMaleBtn">Añadir parental masculino</button>
+            </div>
+          </div>
+
+          <div>
+            <label for="maxFlowers">Máximo de flores por cruzamiento</label>
+            <input type="number" id="maxFlowers" min="0" value="250" />
+          </div>
+
+          <div>
+            <label for="flowersPollinated">Nº de flores polinizadas</label>
+            <input type="number" id="flowersPollinated" min="0" />
+          </div>
+
+          <div class="full subcard">
+            <div class="grid-2">
+              <div>
+                <div class="muted">Flores usadas</div>
+                <div class="stat-value" id="usedFlowersPreview" style="font-size:28px;">0</div>
+              </div>
+              <div>
+                <div class="muted">Flores restantes</div>
+                <div class="stat-value" id="remainingFlowersPreview" style="font-size:28px;">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label for="operator">Operador</label>
+            <input type="text" id="operator" />
+          </div>
+
+          <div>
+            <label for="pollenLot">Lote de polen</label>
+            <select id="pollenLot">
+              <option value="">Selecciona lote</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+            </select>
+          </div>
+
+          <div class="full">
+            <label for="weather">Condiciones del día</label>
+            <input type="text" id="weather" />
+          </div>
+
+          <div class="full">
+            <label for="notes">Observaciones</label>
+            <textarea id="notes"></textarea>
+          </div>
+
+          <div class="full inline-actions">
+            <button type="submit" id="saveBtn">Agregar registro</button>
+            <button type="button" class="secondary" id="resetBtn">Limpiar formulario</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card section">
+        <h2>Consulta rápida</h2>
+        <div>
+          <label for="search">Buscar</label>
+          <input type="text" id="search" placeholder="Parentales, fecha, técnico, localización..." />
+        </div>
+        <div style="margin-top: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; font-size: 13px; color: #475569; line-height: 1.6;">
+          <strong>Consejo:</strong> registra el parental femenino y masculino con código de planta además del nombre varietal. Así podrás rastrear con precisión el origen de semilla, compatibilidad y repetibilidad del cruzamiento.
+        </div>
+      </div>
+    </div>
+
+    <div class="card section" style="margin-top: 20px;">
+      <h2>Historial de hibridaciones</h2>
+      <div id="recordList" class="record-list"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, set, get, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB9tSmoGYCXVy-ydh0iewh152elhcUIcDs",
+      authDomain: "hibridacion-2026.firebaseapp.com",
+      databaseURL: "https://hibridacion-2026-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "hibridacion-2026",
+      storageBucket: "hibridacion-2026.firebasestorage.app",
+      messagingSenderId: "955664873788",
+      appId: "1:955664873788:web:a35c2e280a811e96cd0639"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const FEMALE_OPTIONS_KEY = "citrus-female-parents-html-v1";
+    const MALE_OPTIONS_KEY = "citrus-male-parents-html-v1";
+
+    const defaultFemaleParents = [
+      { parental: "19G151", ploidy: "2x", location: "19G151" },
+      { parental: "26D17", ploidy: "2x", location: "26D17" },
+      { parental: "32D19", ploidy: "2x", location: "32D19" },
+      { parental: "38D24", ploidy: "2x", location: "38D24" },
+      { parental: "17F103", ploidy: "2x", location: "17F103" },
+      { parental: "17F32", ploidy: "2x", location: "17F32" },
+      { parental: "19G86", ploidy: "2x", location: "19G86" },
+      { parental: "19G87", ploidy: "2x", location: "19G87" },
+      { parental: "17F74", ploidy: "2x", location: "17F74" },
+      { parental: "14F152", ploidy: "2x", location: "14F152" },
+      { parental: "14F157", ploidy: "2x", location: "14F157" },
+      { parental: "17F150", ploidy: "2x", location: "17F150" },
+      { parental: "19G102", ploidy: "2x", location: "19G102" },
+      { parental: "19G106", ploidy: "2x", location: "19G106" },
+      { parental: "19G113", ploidy: "2x", location: "19G113" },
+      { parental: "19G115", ploidy: "2x", location: "19G115" },
+      { parental: "19G118", ploidy: "2x", location: "19G118" },
+      { parental: "19G128", ploidy: "2x", location: "19G128" },
+      { parental: "19G131", ploidy: "2x", location: "19G131" },
+      { parental: "12F2", ploidy: "2x", location: "12F2" },
+      { parental: "15F92", ploidy: "2x", location: "15F92" },
+      { parental: "12F10", ploidy: "2x", location: "12F10" },
+      { parental: "15C10", ploidy: "2x", location: "15C10" },
+      { parental: "19G142", ploidy: "2x", location: "19G142" },
+      { parental: "19G149", ploidy: "2x", location: "19G149" },
+      { parental: "19G153", ploidy: "2x", location: "19G153" },
+      { parental: "12F75", ploidy: "2x", location: "12F75" },
+      { parental: "14F123", ploidy: "2x", location: "14F123" },
+      { parental: "15F127", ploidy: "2x", location: "15F127" },
+      { parental: "15F205", ploidy: "2x", location: "15F205" },
+      { parental: "16F180", ploidy: "2x", location: "16F180" },
+      { parental: "17F33", ploidy: "2x", location: "17F33" },
+      { parental: "17F50", ploidy: "2x", location: "17F50" },
+      { parental: "17F152", ploidy: "2x", location: "17F152" },
+      { parental: "13e22", ploidy: "2x", location: "13e22" },
+      { parental: "13E23", ploidy: "2x", location: "13E23" },
+      { parental: "372", ploidy: "2x", location: "372" },
+      { parental: "389", ploidy: "2x", location: "389" },
+      { parental: "390", ploidy: "4x", location: "390" },
+      { parental: "391", ploidy: "4x", location: "391" },
+      { parental: "2C26", ploidy: "2x", location: "13E90_91" },
+      { parental: "Homocigota 10E1-10E5", ploidy: "2x", location: "Homocigota 10E1-10E5" },
+      { parental: "Homocigota 10E6 (hueco)", ploidy: "2x", location: "Homocigota 10E6 (hueco)" },
+      { parental: "Homocigota 10E07-10E12", ploidy: "2x", location: "Homocigota 10E07-10E12" },
+      { parental: "Homocigota 10E13-10E18 (10E14,E16,E18 hueco)", ploidy: "2x", location: "Homocigota 10E13-10E18 (10E14,E16,E18 hueco)" },
+      { parental: "225", ploidy: "2x", location: "11A12_13" },
+      { parental: "282", ploidy: "4x", location: "23C19_20" },
+      { parental: "386", ploidy: "4x", location: "23C16_17" },
+      { parental: "T46", ploidy: "4x", location: "Dobl 18C11/18C12" },
+      { parental: "205", ploidy: "4x", location: "19C19/19C21" },
+      { parental: "T39", ploidy: "4x", location: "Dobl 18C11/18C12" },
+      { parental: "T48", ploidy: "4x", location: "Dobl 18C12/18C13" },
+      { parental: "T43", ploidy: "4x", location: "18C10" },
+      { parental: "363", ploidy: "4x", location: "21C1/21C4" },
+      { parental: "T53", ploidy: "4x", location: "Dobl 18C15/18C16" },
+      { parental: "20G4", ploidy: "2x", location: "20G4" },
+      { parental: "14C24", ploidy: "2x", location: "14C24" },
+      { parental: "331", ploidy: "2x", location: "20A13" },
+      { parental: "225 (2C14)", ploidy: "2x", location: "11A12/11A13" },
+      { parental: "239", ploidy: "2x", location: "16A1/16A4" },
+      { parental: "17F48", ploidy: "2x", location: "17F48" },
+      { parental: "18G141", ploidy: "2x", location: "18G141" },
+      { parental: "21C27", ploidy: "2x", location: "21C27" }
+    ];
+
+    let records = [];
+    let femaleParents = [];
+    let maleParents = [];
+    let editingId = null;
+
+    const formTitle = document.getElementById("formTitle");
+    const recordForm = document.getElementById("recordForm");
+    const femaleParentSelect = document.getElementById("femaleParent");
+    const femalePloidyInput = document.getElementById("femalePloidy");
+    const femaleLocationInput = document.getElementById("femaleLocation");
+    const maleParentSelect = document.getElementById("maleParent");
+    const recordList = document.getElementById("recordList");
+    const searchInput = document.getElementById("search");
+    const totalRecordsEl = document.getElementById("totalRecords");
+    const totalFlowersEl = document.getElementById("totalFlowers");
+    const statusEl = document.getElementById("syncStatus");
+
+    function showStatus(msg, color) {
+      statusEl.textContent = msg;
+      statusEl.style.color = color || "#475569";
+    }
+
+    function normalizeOptions(items) {
+      if (!Array.isArray(items)) return [...defaultFemaleParents];
+      const seen = new Set();
+      const normalized = [];
+      for (const item of items) {
+        let n = null;
+        if (typeof item === "string") {
+          n = { parental: item, ploidy: "2x", location: item };
+        } else if (item && typeof item === "object" && item.parental) {
+          n = {
+            parental: String(item.parental).trim(),
+            ploidy: String(item.ploidy || "2x").trim() || "2x",
+            location: String(item.location || "").trim()
+          };
+        }
+        if (n && n.parental) {
+          const key = n.parental.toLowerCase();
+          if (!seen.has(key)) { seen.add(key); normalized.push(n); }
+        }
+      }
+      return normalized.length ? normalized : [...defaultFemaleParents];
+    }
+
+    function loadLocalParents() {
+      try { const s = JSON.parse(localStorage.getItem(FEMALE_OPTIONS_KEY) || "null"); femaleParents = normalizeOptions(s || defaultFemaleParents); } catch { femaleParents = [...defaultFemaleParents]; }
+      try {
+        const s = JSON.parse(localStorage.getItem(MALE_OPTIONS_KEY) || "null");
+        maleParents = (Array.isArray(s) && s.length) ? Array.from(new Set(s.map(i => String(i).trim()).filter(Boolean))) : Array.from({ length: 50 }, (_, i) => String(i + 1));
+      } catch { maleParents = Array.from({ length: 50 }, (_, i) => String(i + 1)); }
+    }
+
+    function saveParents() { localStorage.setItem(FEMALE_OPTIONS_KEY, JSON.stringify(femaleParents)); }
+    function saveMaleParents() { localStorage.setItem(MALE_OPTIONS_KEY, JSON.stringify(maleParents)); }
+    function generateId(d) { return "HIB-" + d.replaceAll("-","") + "-" + Math.random().toString(36).slice(2,8).toUpperCase(); }
+
+    // Firebase: save a single record
+    async function saveRecordToFirebase(record) {
+      const safeId = record.id.replace(/[.#$/\[\]]/g, "_");
+      await set(ref(db, "records/" + safeId), record);
+    }
+
+    // Firebase: delete a single record
+    async function deleteRecordFromFirebase(id) {
+      const safeId = id.replace(/[.#$/\[\]]/g, "_");
+      await remove(ref(db, "records/" + safeId));
+    }
+
+    // Firebase: listen to all records in real time
+    function listenToRecords() {
+      showStatus("Conectando con Firebase...", "#f59e0b");
+      onValue(ref(db, "records"), snapshot => {
+        const data = snapshot.val();
+        records = data ? Object.values(data).sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0)) : [];
+        updateStats();
+        renderRecords();
+        showStatus("Sincronizado ✓", "#16a34a");
+      }, err => {
+        showStatus("Error de conexion. Comprueba las reglas de Firebase.", "#dc2626");
+      });
+    }
+
+    function renderFemaleOptions() {
+      const cur = femaleParentSelect.value;
+      femaleParentSelect.innerHTML = '<option value="">Selecciona un parental femenino</option>';
+      femaleParents.forEach(item => {
+        const o = document.createElement("option");
+        o.value = item.parental;
+        o.textContent = item.parental + " — " + item.ploidy + " — " + (item.location || "Sin localizacion");
+        femaleParentSelect.appendChild(o);
+      });
+      if (femaleParents.some(i => i.parental === cur)) femaleParentSelect.value = cur;
+    }
+
+    function renderMaleOptions() {
+      const cur = maleParentSelect.value;
+      maleParentSelect.innerHTML = '<option value="">Selecciona un parental masculino</option>';
+      maleParents.forEach(item => {
+        const o = document.createElement("option");
+        o.value = item; o.textContent = item;
+        maleParentSelect.appendChild(o);
+      });
+      if (maleParents.includes(cur)) maleParentSelect.value = cur;
+    }
+
+    function updateFemaleDetails() {
+      const sel = femaleParents.find(i => i.parental === femaleParentSelect.value);
+      femalePloidyInput.value = sel ? sel.ploidy : "";
+      femaleLocationInput.value = sel ? sel.location : "";
+    }
+
+    function getFormData() {
+      return {
+        id: document.getElementById("recordId").value.trim(),
+        date: document.getElementById("date").value,
+        femaleParent: femaleParentSelect.value,
+        femalePloidy: femalePloidyInput.value,
+        femaleLocation: femaleLocationInput.value,
+        maleParent: maleParentSelect.value,
+        maxFlowers: document.getElementById("maxFlowers").value,
+        flowersPollinated: document.getElementById("flowersPollinated").value,
+        operator: document.getElementById("operator").value.trim(),
+        pollenLot: document.getElementById("pollenLot").value,
+        weather: document.getElementById("weather").value.trim(),
+        notes: document.getElementById("notes").value.trim()
+      };
+    }
+
+    function setFormData(data) {
+      document.getElementById("recordId").value = data.id || "";
+      document.getElementById("date").value = data.date || new Date().toISOString().slice(0,10);
+      femaleParentSelect.value = data.femaleParent || "";
+      updateFemaleDetails();
+      maleParentSelect.value = data.maleParent || "";
+      document.getElementById("maxFlowers").value = data.maxFlowers || 250;
+      document.getElementById("flowersPollinated").value = data.flowersPollinated || "";
+      document.getElementById("operator").value = data.operator || "";
+      document.getElementById("pollenLot").value = data.pollenLot || "";
+      document.getElementById("weather").value = data.weather || "";
+      document.getElementById("notes").value = data.notes || "";
+      updateFlowerCounter();
+    }
+
+    function resetForm() {
+      editingId = null;
+      formTitle.textContent = "Nueva hibridacion";
+      document.getElementById("saveBtn").textContent = "Agregar registro";
+      setFormData({ date: new Date().toISOString().slice(0,10), maxFlowers: 250 });
+    }
+
+    function updateFlowerCounter() {
+      const max = Number(document.getElementById("maxFlowers").value || 0);
+      const used = Number(document.getElementById("flowersPollinated").value || 0);
+      document.getElementById("usedFlowersPreview").textContent = String(used);
+      document.getElementById("remainingFlowersPreview").textContent = String(Math.max(max - used, 0));
+      document.getElementById("flowersPollinated").max = String(max || 0);
+    }
+
+    function updateStats() {
+      totalRecordsEl.textContent = String(records.length);
+      totalFlowersEl.textContent = String(records.reduce((s,r) => s + Number(r.flowersPollinated||0), 0));
+    }
+
+    function escapeHtml(v) {
+      return String(v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;");
+    }
+
+    function renderRecords() {
+      const q = searchInput.value.trim().toLowerCase();
+      const filtered = records.filter(r => [r.id,r.date,r.femaleParent,r.femalePloidy,r.femaleLocation,r.maleParent,r.maxFlowers,r.flowersPollinated,r.operator,r.pollenLot,r.weather,r.notes].join(" ").toLowerCase().includes(q));
+      recordList.innerHTML = "";
+      if (!filtered.length) {
+        recordList.innerHTML = '<div class="muted">No hay registros que coincidan con tu busqueda.</div>';
+        return;
+      }
+      filtered.forEach(r => {
+        const card = document.createElement("div");
+        card.className = "card record";
+        card.innerHTML =
+          '<div class="record-title">' + escapeHtml(r.id) + '</div>' +
+          '<div class="record-cross"><strong>' + escapeHtml(r.femaleParent) + '</strong> x <strong>' + escapeHtml(r.maleParent) + '</strong></div>' +
+          '<div class="record-grid">' +
+            '<div><strong>Fecha:</strong> ' + escapeHtml(r.date) + '</div>' +
+            '<div><strong>Ploidia:</strong> ' + escapeHtml(r.femalePloidy||"-") + '</div>' +
+            '<div><strong>Localizacion:</strong> ' + escapeHtml(r.femaleLocation||"-") + '</div>' +
+            '<div><strong>Max. flores:</strong> ' + escapeHtml(String(r.maxFlowers||0)) + '</div>' +
+            '<div><strong>Flores polinizadas:</strong> ' + escapeHtml(String(r.flowersPollinated||0)) + '</div>' +
+            '<div><strong>Flores restantes:</strong> ' + escapeHtml(String(Math.max(Number(r.maxFlowers||0)-Number(r.flowersPollinated||0),0))) + '</div>' +
+            '<div><strong>Operador:</strong> ' + escapeHtml(r.operator||"-") + '</div>' +
+            '<div><strong>Lote de polen:</strong> ' + escapeHtml(r.pollenLot||"-") + '</div>' +
+          '</div>' +
+          (r.weather ? '<div style="margin-top:10px;color:#475569;"><strong>Condiciones:</strong> ' + escapeHtml(r.weather) + '</div>' : '') +
+          (r.notes ? '<div style="margin-top:8px;color:#475569;"><strong>Notas:</strong> ' + escapeHtml(r.notes) + '</div>' : '') +
+          '<div class="record-actions">' +
+            '<button type="button" class="secondary" data-edit="' + escapeHtml(r.id) + '">Editar</button>' +
+            '<button type="button" class="secondary" data-delete="' + escapeHtml(r.id) + '">Eliminar</button>' +
+          '</div>';
+        recordList.appendChild(card);
+      });
+    }
+
+    function exportJson() {
+      const blob = new Blob([JSON.stringify(records,null,2)],{type:"application/json;charset=utf-8"});
+      const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href=url; a.download="hibridaciones_citricos.json"; a.click(); URL.revokeObjectURL(url);
+    }
+
+    function exportCsv() {
+      if (!records.length) return;
+      const headers = Object.keys(records[0]);
+      const rows = [headers.join(","), ...records.map(r=>headers.map(h=>'"'+String(r[h]??"").replaceAll('"','""')+'"').join(","))];
+      const blob = new Blob([rows.join("\n")],{type:"text/csv;charset=utf-8"});
+      const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href=url; a.download="hibridaciones_citricos.csv"; a.click(); URL.revokeObjectURL(url);
+    }
+
+    recordForm.addEventListener("submit", async e => {
+      e.preventDefault();
+      const data = getFormData();
+      if (!data.date || !data.femaleParent || !data.maleParent) return;
+      if (Number(data.flowersPollinated||0) > Number(data.maxFlowers||0)) return;
+      const now = new Date().toISOString();
+      const payload = { ...data, id: data.id || generateId(data.date), updatedAt: now };
+      if (!editingId) payload.createdAt = now;
+      showStatus("Guardando...", "#f59e0b");
+      await saveRecordToFirebase(payload);
+      resetForm();
+    });
+
+    femaleParentSelect.addEventListener("change", updateFemaleDetails);
+
+    document.getElementById("addFemaleBtn").addEventListener("click", () => {
+      const parental = document.getElementById("newFemaleParent").value.trim();
+      const ploidy = document.getElementById("newFemalePloidy").value.trim() || "2x";
+      const location = document.getElementById("newFemaleLocation").value.trim();
+      if (!parental) return;
+      const exists = femaleParents.find(i => i.parental.toLowerCase() === parental.toLowerCase());
+      if (!exists) {
+        femaleParents.push({ parental, ploidy, location });
+        femaleParents.sort((a,b) => a.parental.localeCompare(b.parental,undefined,{numeric:true,sensitivity:"base"}));
+        saveParents(); renderFemaleOptions();
+      }
+      femaleParentSelect.value = exists ? exists.parental : parental;
+      updateFemaleDetails();
+      document.getElementById("newFemaleParent").value = "";
+      document.getElementById("newFemalePloidy").value = "2x";
+      document.getElementById("newFemaleLocation").value = "";
+    });
+
+    document.getElementById("addMaleBtn").addEventListener("click", () => {
+      const value = document.getElementById("newMaleParent").value.trim();
+      if (!value) return;
+      if (!maleParents.includes(value)) {
+        maleParents.push(value);
+        maleParents.sort((a,b) => a.localeCompare(b,undefined,{numeric:true,sensitivity:"base"}));
+        saveMaleParents(); renderMaleOptions();
+      }
+      maleParentSelect.value = value;
+      document.getElementById("newMaleParent").value = "";
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", resetForm);
+    document.getElementById("maxFlowers").addEventListener("input", updateFlowerCounter);
+    document.getElementById("flowersPollinated").addEventListener("input", updateFlowerCounter);
+    document.getElementById("search").addEventListener("input", renderRecords);
+    document.getElementById("exportJsonBtn").addEventListener("click", exportJson);
+    document.getElementById("exportCsvBtn").addEventListener("click", exportCsv);
+
+    recordList.addEventListener("click", async e => {
+      const editId = e.target.getAttribute("data-edit");
+      const deleteId = e.target.getAttribute("data-delete");
+      if (editId) {
+        const record = records.find(i => i.id === editId);
+        if (!record) return;
+        editingId = record.id;
+        formTitle.textContent = "Editar registro";
+        document.getElementById("saveBtn").textContent = "Guardar cambios";
+        setFormData(record);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      if (deleteId) {
+        if (!confirm("Eliminar este registro?")) return;
+        showStatus("Eliminando...", "#f59e0b");
+        await deleteRecordFromFirebase(deleteId);
+        if (editingId === deleteId) resetForm();
+      }
+    });
+
+    // Init
+    loadLocalParents();
+    renderFemaleOptions();
+    renderMaleOptions();
+    resetForm();
+    listenToRecords();
+  </script>
+</body>
+</html>
